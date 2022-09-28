@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.css" />
+    <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    <link rel="stylesheet" href="node_modules/bootstrap-icons/font/bootstrap-icons.css" />
+    <script src="node_modules/jquery/dist/jquery.js"></script>
+    <title>Mithi</title>
+    <style>
+        body {
+            padding-top: 70px;
+
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-dark bg-success navbar-expand-md fixed-top shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand">Mithi</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav-bar"
+                aria-controls="nav-bar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collpase" id="nav-bar">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a href="index.html" class="nav-link">Home</a></li>
+                    <li class="nav-item"><a href="products.html" class="nav-link">Products</a></li>
+
+                </ul>
+
+
+            </div>
+        </div>
+    </nav>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-warning alert-dismissible fade show" role="alert" id="alert"
+                    style="display: none;">
+                    <strong>Congatulations!</strong> Your order has been completed. Your order code <span
+                        id="code"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <h3>Your Cart</h3>
+                <table class="table table-bordered" id="cart-table">
+                    <thead class="bg-success text-white">
+                        <tr>
+                            <th>Product</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Sub total</th>
+                            <th>..</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                    </tbody>
+                </table>
+                <div class="d-flex justify-content-end me-1">
+                    <button class="btn btn-outline-success btn-sm" id="checkout">Checkout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        var db;
+        $(() => {
+            db = openDatabase('projectdb', '1.0', 'project db', 5 * 1024 * 1024, () => {
+                console.log('done')
+            });
+
+            var cart = localStorage.getItem('cart');
+            if (cart) {
+                cart = JSON.parse(cart);
+                let total = 0;
+                cart.items.forEach(item => {
+                    total += item.price * item.qty;
+                    $('#cart-table tbody').append(`<tr>
+                        
+                                                        <td>${item.name}</td>
+                                                        <td>${item.price}</td>
+                                                        <td><input class="form-control form-control-sm" style='width:60px;' id='q_${item.id}' type='number' value='${item.qty}' /></td>
+                                                        <td>${(item.price * item.qty).toFixed(2)}</td>
+                                                        <td><button class='btn btn-outline-primary btn-sm cart-update' data-id='${item.id}'><i class='bi bi-save'></i></button></td>
+                                                    </tr>`);
+                });
+                $('#cart-table').append(`<tr>
+                                            <th colspan='3' class='text-end'>Total: </th>
+                                            <td>${total.toFixed(2)}</td>
+                                        </tr>`)
+            }
+            ////**********events******************/////
+            $(document.body).on('click', '.cart-update', function (ev) {
+
+                let id = $(this).data('id');
+                var cart = localStorage.getItem('cart');
+                if (cart != null) {
+                    cart = JSON.parse(cart);
+                    console.log(cart);
+                    let index = cart.items.findIndex(x => x.id == id);
+                    if (index >= 0) {
+                        let q = Number($('#q_' + id).val());
+                        if (q <= 0) {
+                            cart.items.splice(index, 1);
+                            $(this).parent().parent().remove();
+                            //$(this).closest('tr').remove();
+                        } else {
+                            cart.items[index].qty = q;
+                        }
+
+                    }
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    //console.log(cart);
+                }
+
+            });//UPDATE CLICK
+
+            $('#checkout').click(() => {
+                db.transaction(tx => {
+                    var cart = localStorage.getItem('cart');
+                    if (cart != null) {
+                        cart = JSON.parse(cart);
+                        let ids = [];
+                        cart.items.forEach(x => {
+                            ids.push(x.id);
+                        });
+                        console.log(ids);
+                        
+                        cart.items.forEach(x => {
+                            let sql = "INSERT INTO orders  (orderdate, customerid, productid,quantity) VALUES (?,?, ?, ?)";
+                            let cid = sessionStorage.getItem('customer-id');
+                            let pid = x.id;
+                            let q = x.qty;
+                            let d = formatDate(new Date());
+                            console.log(d)
+                            tx.executeSql(sql, [d, cid, pid, q],
+                                (tx, r) => {
+                                    console.log("inserted")
+                                    let i = ids.findIndex(n => n == x.id);
+                                    ids.splice(i, 1);
+                                    checkDone(ids, cart);
+
+                                }, err => {
+                                    console.log(err);
+                                    let i = ids.findIndex(n => n == x.id);
+                                    ids.splice(i, 1);
+                                    checkDone(ids, cart);
+                                });
+                        });
+                    }
+                });
+            });
+        });
+        function checkDone(vals, cart) {
+            console.log(vals);
+            console.log(cart);
+            if (vals.length == 0) {
+                cart.items = [];
+                localStorage.setItem('cart', JSON.stringify(cart));
+                $('#code').html(makeUniqueCode(6));
+                $('#alert').show();
+                $('#cart-table').hide();
+            }
+        }
+        function makeUniqueCode(length) {
+            var result = '';
+            var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            var charactersLength = characters.length;
+            for (var i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() *
+                    charactersLength));
+            }
+            return result;
+        }
+        function formatDate(d) {
+            return [
+                d.getFullYear(),
+                (d.getMonth() + 1).toString().padStart(2, '0'),
+                d.getDate().toString().padStart(2, '0')
+            ].join('-');
+        }
+
+    </script>
+</body>
+
+</html>

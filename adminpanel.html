@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.css" />
+    <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    <link rel="stylesheet" href="node_modules/bootstrap-icons/font/bootstrap-icons.css" />
+    <script src="node_modules/jquery/dist/jquery.js"></script>
+    <title>Mithi::Admin</title>
+    <style>
+        body {
+            padding-top: 70px;
+        }
+
+        .circle {
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-dark bg-success navbar-expand-md fixed-top shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand">Mithi</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav-bar"
+                aria-controls="nav-bar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collpase" id="nav-bar">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a href="index.html" class="nav-link">Home</a></li>
+                    <li class="nav-item"><a href="products.html" class="nav-link">Products</a></li>
+                </ul>
+
+                <div class="ms-auto me-2" id="form-login">
+                    <form class="d-flex">
+                        <div class="input-group input-group-sm me-1">
+                            <span class="input-group-text">@</span>
+                            <input type="text" id="login-email" class="form-control form-control-sm" placeholder="email"
+                                aria-label="Username" aria-describedby="basic-addon1">
+                            <button class="btn btn-secondary" type="button" id="login">Log in</button>
+                        </div>
+
+                    </form>
+                </div>
+                <span id="cart-items" class="navbar-text text-warning ms-auto"><i class="bi bi-cart"></i> 0 items</span>
+                <ul class="navbar-nav">
+                    <li class="nav-item" id="reg-link"><a title="Customer registration" href="registration.html"
+                            class="nav-link">Register</a></li>
+                    <li class="nav-item"><a href="adminpanel.html" class="nav-link" id="admin-link">[Admin Panel]</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container-fluid">
+        <div class="row p-2">
+            <div class="col-12">
+                <h3>Admin Panel</h3>
+            </div>
+        </div>
+        <div class="row p-2">
+            <div class="col-6">
+                <h4>Products</h4>
+                <table class="table table-bordered table-striped" id="tblProducts">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Brief Description</th>
+                            <th>Price</th>
+                            <th>Picture</th>
+                        </tr>
+                    <tbody>
+
+                    </tbody>
+                    </thead>
+                </table>
+            </div>
+            <div class="col-6">
+                <h4>Add New</h4>
+                <form>
+                    <div class="form-group row mb-1">
+                        <label for="name" class="col-form-label col-form-label-sm col-2 text-end">Name</label>
+                        <div class="col-10">
+                            <input type="text" name="name" id="name" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+                    <div class="form-group row mb-1">
+                        <label for="price" class="col-form-label col-form-label-sm col-2 text-end">Price</label>
+                        <div class="col-10">
+                            <input type="text" name="price" id="price" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+                    <div class="form-group row mb-1">
+                        <label for="desc" class="col-form-label col-form-label-sm col-2 text-end">Description</label>
+                        <div class="col-10">
+                            <textarea spellcheck="false" name="desc" id="desc"
+                                class="form-control form-control-sm"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-group row mb-1">
+                        <label for="pic" class="col-form-label col-form-label-sm col-2 text-end">Description</label>
+                        <div class="col-10">
+                            <input type="file" name="pic" id="pic" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+                    <div class="form-group row mb-1">
+                        <label for="pic" class="col-form-label col-form-label-sm col-2 text-end">Description</label>
+                        <div class="col-10">
+                            <div class="d-flex justify-content-center align-items-center w-100 border"
+                                style="height: 100px;" id="drop">
+                                Drop file here
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <div class="col-10 offset-2 text-end" >
+                            <button id="save" type="button" class="btn btn-outline-success btn-sm">Save</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <footer class="container-fluid">
+
+    </footer>
+    <script>
+        var db;
+        var isLoggedIn = false;
+        var fileByteArray = [];
+        var fileType = "";
+        $(() => {
+            $("#cart-items").hide();
+            var u = sessionStorage.getItem('customer-name');
+            if (u) {
+                isLoggedIn = true;
+                $("#cart-items").show();
+                $('#form-login').hide();
+                $('#reg-link').hide();
+            }
+            db = openDatabase('projectdb', '1.0', 'project db', 5 * 1024 * 1024, () => {
+                console.log('done')
+            });
+            ////******Show product ******///
+            db.transaction(tx => {
+                let sql = `SELECT * FROM products`;
+                tx.executeSql(sql, [], (tx, results) => {
+                    let len = results.rows.length;
+                    for (let i = 0; i < len; i++) {
+                        $("#tblProducts tbody").append(`<tr>
+                                <td>${results.rows.item(i).productname}</td>
+                                <td>${results.rows.item(i).briefdesc}</td>
+                                <td>${results.rows.item(i).price}</td>
+                                <td><img title="pic"  class='circle' style='width:30px;' id='p_${results.rows.item(i).id}' /></td>
+                            </tr>`);
+                        setPicture(`p_${results.rows.item(i).id}`, results.rows.item(i).picture, results.rows.item(i).picturetype);
+                    }
+                })
+            })
+            ////****control events/////
+            $('#pic').change(function () {
+                console.log(document.getElementById('pic').files[0]);
+                fileToByteArray(document.getElementById('pic').files[0]);
+                fileType = document.getElementById('pic').files[0].type;
+                //console.log(fileType)
+
+            });
+            $("#save").click(() => {
+                var dataToInsert = [$('#name').val(), $('#desc').val(), $('#price').val(), fileByteArray, fileType];
+                db.transaction(tx => {
+                    tx.executeSql("INSERT INTO products (productname, briefdesc, price, picture, picturetype) VALUES (?, ?, ?, ?, ?)", dataToInsert,
+                        (tx, r) => {
+                            console.log("inserted")
+                            fileByteArray = [];
+                            fileType = '';
+                            window.location.reload();
+                        }, err => {
+                            console.log(err);
+                        });
+                });
+            });
+        });
+        function fileToByteArray(f) {
+            var reader = new FileReader();
+
+            reader.readAsArrayBuffer(f);
+            reader.onloadend = function (evt) {
+                if (evt.target.readyState == FileReader.DONE) {
+                    var arrayBuffer = evt.target.result,
+                        array = new Uint8Array(arrayBuffer);
+                    for (var i = 0; i < array.length; i++) {
+                        fileByteArray.push(array[i]);
+                    }
+
+                }
+            }
+        }
+        function setPicture(id, bytes, picType) {
+            //console.log( bytes.split(','));
+            const content = new Uint8Array(bytes.split(','));
+            document.getElementById(id).src = URL.createObjectURL(
+                new Blob([content.buffer], { type: picType } /* (1) */)
+            );
+        }
+        var div = $("#drop");
+            div.on("dragenter", evt=>{
+                
+                evt.preventDefault();
+            });
+            div.on("dragover", evt=>{
+                evt.preventDefault();
+            });
+            div.on("drop", evt=>{
+                var files = evt.originalEvent.dataTransfer.files;
+                //console.log(files[0]);
+                
+                fileToByteArray(files[0])
+                evt.preventDefault();
+            });
+    </script>
+</body>
+
+</html>

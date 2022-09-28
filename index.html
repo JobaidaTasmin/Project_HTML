@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.css" />
+    <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    <link rel="stylesheet" href="node_modules/bootstrap-icons/font/bootstrap-icons.css" />
+    <script src="node_modules/jquery/dist/jquery.js"></script>
+    <title>Mithi</title>
+    <style>
+        body {
+            padding-top: 70px;
+        }
+        .link-active {
+            text-decoration: overline;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-dark bg-success navbar-expand-md fixed-top shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand">Mithi</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav-bar"
+                aria-controls="nav-bar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collpase" id="nav-bar">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a href="index.html" class="nav-link active link-active">Home</a></li>
+                    <li class="nav-item"><a href="products.html" class="nav-link">Products</a></li>
+                  <li class="nav-item" ><a href="cart.html" class="nav-link">View Cart</a></li>
+                </ul>
+
+               <div class="ms-auto me-2" id="form-login">
+                <form class="d-flex"  >
+                    <div class="input-group input-group-sm me-1">
+                        <span class="input-group-text">@</span>
+                        <input type="text" id="login-email" class="form-control form-control-sm" placeholder="email"
+                            aria-label="Username" aria-describedby="basic-addon1">
+                        <button class="btn btn-secondary" type="button" id="login">Log in</button>
+                    </div>
+
+                </form>
+               </div>
+                <span id="cart-items" class="navbar-text text-warning ms-auto"><i class="bi bi-cart"></i> <span id="csummary">0</span> items</span>
+                <ul class="navbar-nav">
+  
+                    <li class="nav-item" id="reg-link"><a title="Customer registration" href="registration.html"
+                            class="nav-link">Register</a></li>
+                    <li class="nav-item"><a href="adminpanel.html" class="nav-link" id="admin-link">[Admin Panel]</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container-fluid">
+		<h1>Wellcome to our Shop</h1>
+
+		<h3>Create by Jobaida Tasmin</h3>
+		<h3>Trainee Id: 1263735</h3>
+    </div>
+    <footer class="container-fluid">
+
+    </footer>
+    <script>
+        var db; 
+        var isLoggedIn = false;
+        $(() => {
+            $("#cart-items").hide();
+            $("#cart-link").hide();
+           
+            
+            db = openDatabase('projectdb', '1.0', 'project db', 5 * 1024 * 1024, () => {
+                console.log('done')
+            });
+            var u = sessionStorage.getItem('customer-name'); var u = sessionStorage.getItem('customer-name');
+            if(u){
+                isLoggedIn=true;
+                $("#cart-items").show();
+                $("#cart-link").show();
+                            $('#form-login').hide();
+                            $('#reg-link').hide();
+                showCartSummary();          
+            }
+             db.transaction(tx => {
+
+                var sql = `CREATE TABLE IF NOT EXISTS products
+                        (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            productname VARCHAR(50),
+                            briefdesc VARCHAR(100),
+                            price REAL,
+                            picture BLOB,
+                            picturetype VARCHAR(25)                       
+                        )`;
+
+                tx.executeSql(sql);
+                sql = `CREATE TABLE IF NOT EXISTS customers
+                (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customername VARCHAR(50),
+                    address VARCHAR(100),
+                    phone VARCHAR(20),
+                    email VARCHAR(50)
+                )`;
+                tx.executeSql(sql);
+                sql = `CREATE TABLE IF NOT EXISTS orders
+                (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    orderdate DATETIME,
+                    customerid INTEGER REFERENCES customers (id),
+                    productid INTEGER REFERENCES products (id),
+                    quantity INTEGER 
+                )`;
+                tx.executeSql(sql);
+            });
+            $('#admin-link').click(ev=>{
+                var pass = prompt('Password ??');
+                if(pass != '1263735') ev.preventDefault();
+            })
+            $('#login').click(()=>{
+                if($('#login-email').val()=='') return;
+                let sql = `SELECT id, customername FROM customers WHERE email='${$('#login-email').val()}'`;
+                console.log(sql);
+                db.transaction(tx=>{
+                    tx.executeSql(sql, [], (tx, results)=>{
+                        if(results.rows!=null)
+                        {
+                            console.log(results.rows.item(0).customername);
+                            isLoggedIn=true;
+                            $("#cart-items").show();
+                            $("#cart-link").show();
+                            $('#form-login').hide();
+                            $('#reg-link').hide();
+                            sessionStorage.setItem('customer-name', results.rows.item(0).customername );
+                            sessionStorage.setItem('customer-id', results.rows.item(0).id);
+                        }
+                    });
+                }); 
+            });
+        });
+        function showCartSummary(){
+            console.log('summary')
+            let cart = localStorage.getItem('cart');
+            if(cart != null) {
+                cart = JSON.parse(cart);
+                let q= 0;
+                cart.items.forEach(x=>{
+                    q += x.qty
+                    console.log(x.qty);
+                });
+                $("#csummary").html(q);
+               
+            }
+        }
+    </script>
+</body>
+
+</html>
